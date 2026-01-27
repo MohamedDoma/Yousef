@@ -267,20 +267,35 @@ const setupApp = (user) => {
         setDoc(configRef, { isOpen: !registrationOpen }, { merge: true });
     };
 
-    // 3. شريط الأخبار (محدث للغتين)
+// 3. شريط الأخبار (ذكي: يعرض حسب لغة الموقع)
     const marqueeRef = doc(db, 'artifacts', appId, 'public', 'data', 'config', 'marquee');
+    
     onSnapshot(marqueeRef, (snap) => {
         const data = snap.data();
-        const text = (currentLang === 'en' && data?.text_en) ? data.text_en : (data?.text || "مرحباً بكم في اللجنة الرياضية");
-        document.getElementById('marqueeText').innerText = text;
+        
+        let textToShow = "";
+
+        if (currentLang === 'en') {
+            // إذا كانت اللغة إنجليزية، اعرض النص الإنجليزي
+            // (إذا لم يكن موجوداً، اعرض العربي كاحتياط)
+            textToShow = data?.text_en || data?.text || "Welcome to Al-Wafa Sports Committee";
+        } else {
+            // إذا كانت اللغة عربية، اعرض النص العربي
+            textToShow = data?.text || "مرحباً بكم في اللجنة الرياضية";
+        }
+
+        document.getElementById('marqueeText').innerText = textToShow;
+        
     }, handleFirestoreError);
     
+    // كود الحفظ (يبقى كما هو ليحفظ اللغتين)
     document.getElementById('saveMarqueeBtn').onclick = () => {
         setDoc(marqueeRef, { 
             text: document.getElementById('marqueeInput').value,
             text_en: document.getElementById('marqueeInputEn').value 
         }, { merge: true });
         closeModal('marqueeAdminModal');
+        showStatus("تم تحديث الشريط", "#10b981");
     };
 
     // 4. البث المباشر
@@ -804,6 +819,29 @@ const translations = {
         btn_confirm_reg: "Confirm Registration",
         footer_rights: "Developed by Yousef Ben Halim",
         btn_lang: "عربي"
+    }
+};
+
+// ==========================================
+// 8. وظيفة الشاشة الكاملة للبث
+// ==========================================
+window.toggleStreamFullScreen = () => {
+    const elem = document.getElementById('streamDisplay');
+    
+    if (!document.fullscreenElement) {
+        // الدخول في وضع الشاشة الكاملة
+        if (elem.requestFullscreen) {
+            elem.requestFullscreen();
+        } else if (elem.webkitRequestFullscreen) { /* Safari */
+            elem.webkitRequestFullscreen();
+        } else if (elem.msRequestFullscreen) { /* IE11 */
+            elem.msRequestFullscreen();
+        }
+    } else {
+        // الخروج من وضع الشاشة الكاملة
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
     }
 };
 

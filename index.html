@@ -133,10 +133,15 @@
                 <div class="p-3 bg-red-600 text-white font-bold flex items-center justify-between text-xs">
                     <div class="flex items-center">
                         <span id="liveIndicator" class="hidden w-2 h-2 bg-white rounded-full animate-ping ml-2"></span>
-                        <span>بث مباشر</span>
+                        <span data-i18n="nav_stream">بث مباشر</span>
                     </div>
+                    <button onclick="toggleStreamFullScreen()" class="hover:bg-red-700 p-1 rounded transition" title="Full Screen">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                        </svg>
+                    </button>
                 </div>
-                <div id="streamDisplay" class="aspect-video bg-black flex items-center justify-center text-white/40 text-sm">
+                <div id="streamDisplay" class="aspect-video bg-black flex items-center justify-center text-white/40 text-sm w-full">
                     لا يوجد بث مباشر حالياً
                 </div>
             </section>

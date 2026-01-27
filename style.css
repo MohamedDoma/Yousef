@@ -74,7 +74,7 @@ body.is-admin .admin-only {
 .animate-marquee {
     display: inline-block;
     padding-right: 100%;
-    animation: marquee-movement 25s linear infinite;
+    animation: marquee-movement 50s linear infinite;
 }
 
 @keyframes marquee-movement {
@@ -194,19 +194,19 @@ body.is-admin .admin-only {
 }
 
 /* =========================================
-   تعديل اتجاه الشريط الإخباري بناءً على اللغة
+   تعديل اتجاه الشريط الإخباري (إنجليزية) - نهائي ومعدل
    ========================================= */
 
-/* تعريف حركة خاصة للإنجليزية (LTR) تحرك النص لليسار */
-@keyframes marquee-movement-ltr {
-    0% { transform: translateX(0); }
+@keyframes marquee-ltr {
+    /* 100% بالموجب: تعني أن النص سيبدأ من أقصى اليمين (خارج حدود اليسار)
+       وهذا يضمن أن النص يظهر كاملاً وهو يدخل الشاشة
+    */
+    0% { transform: translateX(100%); } 
     100% { transform: translateX(-100%); }
 }
 
-/* عندما تكون الصفحة إنجليزية، استخدم الحركة الجديدة */
 html[dir="ltr"] .animate-marquee {
-    animation-name: marquee-movement-ltr;
-    /* تعديل البادينغ ليبدأ النص من المكان الصحيح في الإنجليزي */
-    padding-right: 0;
-    padding-left: 100%; 
+    animation-name: marquee-ltr;
+    /* نلغي البادينغ لكي يعتمد فقط على الحركة */
+    padding: 0;
 }
