@@ -199,7 +199,12 @@
         <div class="bg-white p-8 rounded-3xl w-full max-w-md">
             <h3 class="font-black text-2xl text-blue-900 mb-6">إضافة خبر جديد</h3>
             <form id="newsAdminForm" class="space-y-4">
-                <input type="hidden" id="editNewsId">
+                <input type="hidden" id="editNewsId"> 
+
+                <div>
+                    <p class="text-[10px] text-gray-400 mb-1 text-right">صورة الخبر (اختياري)</p>
+                    <input type="text" id="newsImgInput" placeholder="رابط الصورة (https://...)" class="w-full border-2 p-3 rounded-xl text-left font-mono text-xs" dir="ltr">
+                </div>
 
                 <div class="border-b pb-2 mb-2">
                     <p class="text-[10px] text-gray-400 mb-1 text-right">المحتوى العربي</p>
@@ -213,7 +218,7 @@
                     <textarea id="newsContentEn" placeholder="News Details (English)..." class="w-full border-2 p-3 rounded-xl text-left h-24" dir="ltr"></textarea>
                 </div>
 
-                <button type="submit" class="w-full bg-blue-900 text-white py-3 rounded-xl font-bold">نشر الخبر / Publish</button>
+                <button type="submit" class="w-full bg-blue-900 text-white py-3 rounded-xl font-bold">حفظ / Save</button>
             </form>
             <button class="mt-4 text-gray-400 w-full" onclick="closeModal('newsAdminModal')">إغلاق</button>
         </div>

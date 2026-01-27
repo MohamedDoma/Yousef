@@ -319,35 +319,18 @@ const setupApp = (user) => {
         }, handleFirestoreError);
     };
 
-// الأخبار (محدث لدعم اللغتين)
-    // setupCollectionListener('news', 'newsContainer', (id, n) => {
-    //     // تحديد النص بناءً على اللغة الحالية
-    //     // إذا اللغة إنجليزية + يوجد نص إنجليزي -> اعرض إنجليزي. وإلا -> اعرض عربي
-    //     const displayTitle = (currentLang === 'en' && n.title_en) ? n.title_en : n.title;
-    //     const displayContent = (currentLang === 'en' && n.content_en) ? n.content_en : n.content;
-    //     const alignClass = (currentLang === 'en' && n.title_en) ? 'text-left' : 'text-right'; // ضبط المحاذاة
-
-    //     const el = document.createElement('div');
-    //     el.className = `bg-white p-6 rounded-3xl shadow-sm border-r-4 border-blue-900 relative ${alignClass}`;
-    //     el.innerHTML = `
-    //         <button class="admin-only absolute left-4 top-4 text-red-400 text-xs font-bold" onclick="deleteDocById('news', '${id}')">Delete/حذف</button>
-    //         <h4 class="text-xl font-black text-blue-900 mb-2">${displayTitle}</h4>
-    //         <p class="text-gray-600 text-sm font-bold formatted-text">${displayContent}</p>
-    //     `;
-    //     return el;
-    // });
-
     // ==========================================
-    // ✅ الكود الجديد: الأخبار (عرض + تعديل + حذف)
+    // ✅ الكود الجديد: الأخبار (عرض + تعديل + حذف + صورة)
     // ==========================================
 
-    window.newsCache = {}; // لتخزين البيانات مؤقتاً
+    window.newsCache = {};
 
-    // دالة لفتح النافذة وتعبئة البيانات عند التعديل
+    // 1. دالة التعديل (تعبئة البيانات + الصورة)
     window.editNews = (id) => {
         const data = window.newsCache[id];
         if(!data) return;
-        document.getElementById('editNewsId').value = id; // تخزين المعرف
+        document.getElementById('editNewsId').value = id;
+        document.getElementById('newsImgInput').value = data.image || ""; // تعبئة رابط الصورة
         document.getElementById('newsTitle').value = data.title || "";
         document.getElementById('newsContent').value = data.content || "";
         document.getElementById('newsTitleEn').value = data.title_en || "";
@@ -355,34 +338,43 @@ const setupApp = (user) => {
         openModal('newsAdminModal');
     };
 
-    // دالة لتنظيف النافذة عند إضافة خبر جديد
+    // 2. دالة التصفير
     window.resetNewsForm = () => {
         document.getElementById('editNewsId').value = ""; 
         document.getElementById('newsAdminForm').reset();
     };
 
-    // 1. العرض (مع أزرار التعديل والحذف)
+// 3. العرض (مع الصورة في الأسفل)
     setupCollectionListener('news', 'newsContainer', (id, n) => {
-        window.newsCache[id] = n; // حفظ نسخة للتعديل
+        window.newsCache[id] = n; 
 
         const displayTitle = (currentLang === 'en' && n.title_en) ? n.title_en : n.title;
         const displayContent = (currentLang === 'en' && n.content_en) ? n.content_en : n.content;
         const alignClass = (currentLang === 'en' && n.title_en) ? 'text-left' : 'text-right';
 
+        // تجهيز كود الصورة (إذا وجدت)
+        let imageHTML = '';
+        if (n.image && n.image.trim() !== "") {
+            // لاحظ: غيرنا mb-4 إلى mt-4 لعمل مسافة فوق الصورة
+            imageHTML = `<img src="${n.image}" class="w-full h-64 object-cover rounded-xl mt-4 border border-gray-100 shadow-sm" alt="News Image">`;
+        }
+
         const el = document.createElement('div');
         el.className = `bg-white p-6 rounded-3xl shadow-sm border-r-4 border-blue-900 relative ${alignClass}`;
         el.innerHTML = `
-            <div class="admin-only absolute left-4 top-4 flex gap-2">
-                <button class="text-blue-600 text-xs font-bold bg-blue-50 px-2 py-1 rounded hover:bg-blue-100" onclick="editNews('${id}')">Edit/تعديل</button>
-                <button class="text-red-400 text-xs font-bold bg-red-50 px-2 py-1 rounded hover:bg-red-100" onclick="deleteDocById('news', '${id}')">Delete/حذف</button>
+            <div class="admin-only absolute left-4 top-4 flex gap-2 z-10">
+                <button class="text-blue-600 text-xs font-bold bg-blue-50 px-2 py-1 rounded hover:bg-blue-100" onclick="editNews('${id}')">Edit</button>
+                <button class="text-red-400 text-xs font-bold bg-red-50 px-2 py-1 rounded hover:bg-red-100" onclick="deleteDocById('news', '${id}')">Delete</button>
             </div>
+            
             <h4 class="text-xl font-black text-blue-900 mb-2 mt-4">${displayTitle}</h4>
             <p class="text-gray-600 text-sm font-bold formatted-text">${displayContent}</p>
-        `;
+            
+            ${imageHTML} `;
         return el;
     });
 
-    // 2. الحفظ (مخصص للأخبار فقط)
+    // 4. الحفظ (حفظ حقل الصورة)
     const newsForm = document.getElementById('newsAdminForm');
     if(newsForm) {
         newsForm.onsubmit = async (e) => {
@@ -391,6 +383,7 @@ const setupApp = (user) => {
 
             const id = document.getElementById('editNewsId').value;
             const newsData = {
+                image: document.getElementById('newsImgInput').value, // حفظ الرابط
                 title: document.getElementById('newsTitle').value,
                 content: document.getElementById('newsContent').value,
                 title_en: document.getElementById('newsTitleEn').value,
@@ -399,11 +392,9 @@ const setupApp = (user) => {
 
             try {
                 if (id) {
-                    // تعديل خبر قديم
                     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'news', id), newsData, { merge: true });
                     showStatus("تم التعديل بنجاح", "#3b82f6");
                 } else {
-                    // إضافة خبر جديد
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'news'), {
                         ...newsData,
                         timestamp: serverTimestamp()
