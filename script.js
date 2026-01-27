@@ -106,19 +106,45 @@ const handleFirestoreError = (err) => {
 // 3. منطق التطبيق (يعمل بعد تسجيل الدخول)
 // ==========================================
 
-// 3.5. العنوان الرئيسي (Hero Title)
+// 3.5. الواجهة الرئيسية (عنوان + صورة)
     const heroRef = doc(db, 'artifacts', appId, 'public', 'data', 'config', 'hero');
     onSnapshot(heroRef, (snap) => {
-        // إذا لم يكن هناك نص محفوظ، نستخدم النص الافتراضي
-        document.getElementById('heroTitle').innerText = snap.data()?.text || "ملاعب الوفاء تناديكم";
+        const data = snap.data();
+        
+        // 1. تحديث النص (كما كان سابقاً)
+        const defaultText = currentLang === 'en' ? "Al-Wafa Fields Call You" : "ملاعب الوفاء تناديكم";
+        let textToShow = defaultText;
+        if (data) {
+             if (currentLang === 'en' && data.text_en) textToShow = data.text_en;
+             else if (currentLang === 'ar' && data.text) textToShow = data.text;
+        }
+        const heroTitleEl = document.getElementById('heroTitle');
+        if(heroTitleEl) heroTitleEl.innerText = textToShow;
+
+        // 2. تحديث الصورة (الجديد)
+        const defaultImg = "https://drive.google.com/thumbnail?id=12_e3EC9QX9YFPc7eXcVF_fsco7qhmRv-&sz=w1200";
+        const heroImgEl = document.getElementById('heroBgImg');
+        if(heroImgEl) {
+            heroImgEl.src = data?.image || defaultImg;
+        }
+
     }, handleFirestoreError);
     
     document.getElementById('saveHeroBtn').onclick = () => {
-        const newText = document.getElementById('heroInput').value;
-        if(newText.trim()) {
-            setDoc(heroRef, { text: newText }, { merge: true });
+        const newTextAr = document.getElementById('heroInput').value;
+        const newTextEn = document.getElementById('heroInputEn').value;
+        const newImg = document.getElementById('heroImgInput').value;
+
+        // نجهز البيانات للتحديث (نحدث فقط الحقول التي تم تعبئتها)
+        const updateData = {};
+        if(newTextAr) updateData.text = newTextAr;
+        if(newTextEn) updateData.text_en = newTextEn;
+        if(newImg) updateData.image = newImg;
+
+        if(Object.keys(updateData).length > 0) {
+            setDoc(heroRef, updateData, { merge: true });
             closeModal('heroAdminModal');
-            showStatus("تم تحديث العنوان", "#10b981");
+            showStatus("تم تحديث الواجهة بنجاح", "#10b981");
         }
     };
 
@@ -241,14 +267,19 @@ const setupApp = (user) => {
         setDoc(configRef, { isOpen: !registrationOpen }, { merge: true });
     };
 
-    // 3. شريط الأخبار
+    // 3. شريط الأخبار (محدث للغتين)
     const marqueeRef = doc(db, 'artifacts', appId, 'public', 'data', 'config', 'marquee');
     onSnapshot(marqueeRef, (snap) => {
-        document.getElementById('marqueeText').innerText = snap.data()?.text || "مرحباً بكم في اللجنة الرياضية";
+        const data = snap.data();
+        const text = (currentLang === 'en' && data?.text_en) ? data.text_en : (data?.text || "مرحباً بكم في اللجنة الرياضية");
+        document.getElementById('marqueeText').innerText = text;
     }, handleFirestoreError);
     
     document.getElementById('saveMarqueeBtn').onclick = () => {
-        setDoc(marqueeRef, { text: document.getElementById('marqueeInput').value }, { merge: true });
+        setDoc(marqueeRef, { 
+            text: document.getElementById('marqueeInput').value,
+            text_en: document.getElementById('marqueeInputEn').value 
+        }, { merge: true });
         closeModal('marqueeAdminModal');
     };
 
@@ -288,33 +319,130 @@ const setupApp = (user) => {
         }, handleFirestoreError);
     };
 
+// الأخبار (محدث لدعم اللغتين)
+    // setupCollectionListener('news', 'newsContainer', (id, n) => {
+    //     // تحديد النص بناءً على اللغة الحالية
+    //     // إذا اللغة إنجليزية + يوجد نص إنجليزي -> اعرض إنجليزي. وإلا -> اعرض عربي
+    //     const displayTitle = (currentLang === 'en' && n.title_en) ? n.title_en : n.title;
+    //     const displayContent = (currentLang === 'en' && n.content_en) ? n.content_en : n.content;
+    //     const alignClass = (currentLang === 'en' && n.title_en) ? 'text-left' : 'text-right'; // ضبط المحاذاة
+
+    //     const el = document.createElement('div');
+    //     el.className = `bg-white p-6 rounded-3xl shadow-sm border-r-4 border-blue-900 relative ${alignClass}`;
+    //     el.innerHTML = `
+    //         <button class="admin-only absolute left-4 top-4 text-red-400 text-xs font-bold" onclick="deleteDocById('news', '${id}')">Delete/حذف</button>
+    //         <h4 class="text-xl font-black text-blue-900 mb-2">${displayTitle}</h4>
+    //         <p class="text-gray-600 text-sm font-bold formatted-text">${displayContent}</p>
+    //     `;
+    //     return el;
+    // });
+
+    // ==========================================
+    // ✅ الكود الجديد: الأخبار (عرض + تعديل + حذف)
+    // ==========================================
+
+    window.newsCache = {}; // لتخزين البيانات مؤقتاً
+
+    // دالة لفتح النافذة وتعبئة البيانات عند التعديل
+    window.editNews = (id) => {
+        const data = window.newsCache[id];
+        if(!data) return;
+        document.getElementById('editNewsId').value = id; // تخزين المعرف
+        document.getElementById('newsTitle').value = data.title || "";
+        document.getElementById('newsContent').value = data.content || "";
+        document.getElementById('newsTitleEn').value = data.title_en || "";
+        document.getElementById('newsContentEn').value = data.content_en || "";
+        openModal('newsAdminModal');
+    };
+
+    // دالة لتنظيف النافذة عند إضافة خبر جديد
+    window.resetNewsForm = () => {
+        document.getElementById('editNewsId').value = ""; 
+        document.getElementById('newsAdminForm').reset();
+    };
+
+    // 1. العرض (مع أزرار التعديل والحذف)
     setupCollectionListener('news', 'newsContainer', (id, n) => {
+        window.newsCache[id] = n; // حفظ نسخة للتعديل
+
+        const displayTitle = (currentLang === 'en' && n.title_en) ? n.title_en : n.title;
+        const displayContent = (currentLang === 'en' && n.content_en) ? n.content_en : n.content;
+        const alignClass = (currentLang === 'en' && n.title_en) ? 'text-left' : 'text-right';
+
         const el = document.createElement('div');
-        el.className = "bg-white p-6 rounded-3xl shadow-sm border-r-4 border-blue-900 relative";
+        el.className = `bg-white p-6 rounded-3xl shadow-sm border-r-4 border-blue-900 relative ${alignClass}`;
         el.innerHTML = `
-            <button class="admin-only absolute left-4 top-4 text-red-400 text-xs font-bold" onclick="deleteDocById('news', '${id}')">حذف</button>
-            <h4 class="text-xl font-black text-blue-900 mb-2">${n.title}</h4>
-            <p class="text-gray-600 text-sm font-bold formatted-text">${n.content}</p>
+            <div class="admin-only absolute left-4 top-4 flex gap-2">
+                <button class="text-blue-600 text-xs font-bold bg-blue-50 px-2 py-1 rounded hover:bg-blue-100" onclick="editNews('${id}')">Edit/تعديل</button>
+                <button class="text-red-400 text-xs font-bold bg-red-50 px-2 py-1 rounded hover:bg-red-100" onclick="deleteDocById('news', '${id}')">Delete/حذف</button>
+            </div>
+            <h4 class="text-xl font-black text-blue-900 mb-2 mt-4">${displayTitle}</h4>
+            <p class="text-gray-600 text-sm font-bold formatted-text">${displayContent}</p>
         `;
         return el;
     });
 
+    // 2. الحفظ (مخصص للأخبار فقط)
+    const newsForm = document.getElementById('newsAdminForm');
+    if(newsForm) {
+        newsForm.onsubmit = async (e) => {
+            e.preventDefault();
+            if (!auth.currentUser) return showStatus("غير متصل", "#ef4444");
+
+            const id = document.getElementById('editNewsId').value;
+            const newsData = {
+                title: document.getElementById('newsTitle').value,
+                content: document.getElementById('newsContent').value,
+                title_en: document.getElementById('newsTitleEn').value,
+                content_en: document.getElementById('newsContentEn').value
+            };
+
+            try {
+                if (id) {
+                    // تعديل خبر قديم
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'news', id), newsData, { merge: true });
+                    showStatus("تم التعديل بنجاح", "#3b82f6");
+                } else {
+                    // إضافة خبر جديد
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'news'), {
+                        ...newsData,
+                        timestamp: serverTimestamp()
+                    });
+                    showStatus("تم النشر بنجاح", "#10b981");
+                }
+                closeModal('newsAdminModal');
+                newsForm.reset();
+            } catch (err) {
+                console.error(err);
+                showStatus("حدث خطأ", "#ef4444");
+            }
+        };
+    }
+
+    // الإعلانات (محدث)
     setupCollectionListener('ads', 'adsContainer', (id, a) => {
+        const displayTitle = (currentLang === 'en' && a.title_en) ? a.title_en : a.title;
+        const alignClass = (currentLang === 'en' && a.title_en) ? 'flex-row-reverse' : 'flex-row'; // لعكس الأيقونة
+
         const el = document.createElement('div');
-        el.className = "bg-purple-50 p-4 rounded-2xl flex justify-between items-center group";
+        el.className = `bg-purple-50 p-4 rounded-2xl flex justify-between items-center group ${alignClass}`;
         el.innerHTML = `
-            <a href="${a.link || '#'}" target="_blank" class="text-purple-900 font-black text-sm hover:underline">📢 ${a.title}</a>
-            <button class="admin-only text-red-400 text-[10px] opacity-0 group-hover:opacity-100 transition font-bold" onclick="deleteDocById('ads', '${id}')">حذف</button>
+            <a href="${a.link || '#'}" target="_blank" class="text-purple-900 font-black text-sm hover:underline">📢 ${displayTitle}</a>
+            <button class="admin-only text-red-400 text-[10px] opacity-0 group-hover:opacity-100 transition font-bold" onclick="deleteDocById('ads', '${id}')">Delete</button>
         `;
         return el;
     });
 
+    // اللوائح (محدث)
     setupCollectionListener('rules', 'rulesContainer', (id, r) => {
+        const displayTitle = (currentLang === 'en' && r.title_en) ? r.title_en : r.title;
+        const alignClass = (currentLang === 'en' && r.title_en) ? 'flex-row-reverse' : 'flex-row';
+
         const el = document.createElement('div');
-        el.className = "bg-indigo-50 p-4 rounded-2xl flex justify-between items-center group";
+        el.className = `bg-indigo-50 p-4 rounded-2xl flex justify-between items-center group ${alignClass}`;
         el.innerHTML = `
-            <a href="${r.link}" target="_blank" class="text-indigo-900 font-black text-sm hover:underline">📜 ${r.title}</a>
-            <button class="admin-only text-red-400 text-[10px] opacity-0 group-hover:opacity-100 transition font-bold" onclick="deleteDocById('rules', '${id}')">حذف</button>
+            <a href="${r.link}" target="_blank" class="text-indigo-900 font-black text-sm hover:underline">📜 ${displayTitle}</a>
+            <button class="admin-only text-red-400 text-[10px] opacity-0 group-hover:opacity-100 transition font-bold" onclick="deleteDocById('rules', '${id}')">Delete</button>
         `;
         return el;
     });
@@ -405,20 +533,27 @@ const handleFormSubmit = async (formId, colName, dataBuilder) => {
     };
 };
 
-handleFormSubmit('newsAdminForm', 'news', () => ({
-    title: document.getElementById('newsTitle').value,
-    content: document.getElementById('newsContent').value
-}));
+// تعديل: حفظ الخبر باللغتين
+// handleFormSubmit('newsAdminForm', 'news', () => ({
+//     title: document.getElementById('newsTitle').value,
+//     content: document.getElementById('newsContent').value,
+//     title_en: document.getElementById('newsTitleEn').value,     // حقل جديد
+//     content_en: document.getElementById('newsContentEn').value  // حقل جديد
+// }));
 
-handleFormSubmit('adsAdminForm', 'ads', () => ({
-    title: document.getElementById('adTitle').value,
-    link: document.getElementById('adLink').value
-}));
+// تحديث حفظ الإعلانات
+    handleFormSubmit('adsAdminForm', 'ads', () => ({
+        title: document.getElementById('adTitle').value,
+        title_en: document.getElementById('adTitleEn').value,
+        link: document.getElementById('adLink').value
+    }));
 
-handleFormSubmit('rulesAdminForm', 'rules', () => ({
-    title: document.getElementById('ruleTitle').value,
-    link: document.getElementById('ruleLink').value
-}));
+    // تحديث حفظ اللوائح
+    handleFormSubmit('rulesAdminForm', 'rules', () => ({
+        title: document.getElementById('ruleTitle').value,
+        title_en: document.getElementById('ruleTitleEn').value,
+        link: document.getElementById('ruleLink').value
+    }));
 
 // ===============================================
 // 5. منطق التسجيل (حفظ الأعضاء + منع التكرار الشامل)
@@ -628,5 +763,109 @@ const initAuthAndApp = async () => {
 onAuthStateChanged(auth, (user) => {
     if (user) setupApp(user);
 });
+
+// ==========================================
+// 7. نظام الترجمة (Translation System)
+// ==========================================
+let currentLang = localStorage.getItem('site_lang') || 'ar'; // قراءة اللغة المحفوظة أو الافتراضية
+
+const translations = {
+    ar: {
+        site_title: "اللجنة الرياضية لحقل الوفاء",
+        nav_home: "الرئيسية",
+        nav_news: "الأخبار",
+        nav_stream: "البث",
+        nav_register: "سجل الآن",
+        hero_default: "ملاعب الوفاء تناديكم",
+        section_ads: "الإعلانات والتعميمات",
+        section_rules: "القوانين واللوائح",
+        section_news: "الأخبار والمقالات",
+        reg_title: "التسجيل في الدوري",
+        reg_closed: "التسجيل مغلق حالياً",
+        reg_msg: "نأسف، تم اكتمال العدد أو إيقاف التسجيل مؤقتاً.",
+        placeholder_name: "الاسم",
+        placeholder_workplace: "مكان العمل",
+        placeholder_phone: "رقم الموبايل",
+        placeholder_team: "اسم الفريق",
+        lbl_players: "قائمة أعضاء الفريق:",
+        btn_confirm_reg: "تأكيد التسجيل",
+        footer_rights: "Developed by Yousef Ben Halim",
+        btn_lang: "English"
+    },
+    en: {
+        site_title: "Al-Wafa Sports Committee",
+        nav_home: "Home",
+        nav_news: "News",
+        nav_stream: "Live Stream",
+        nav_register: "Register Now",
+        hero_default: "Al-Wafa Fields Call You",
+        section_ads: "Announcements",
+        section_rules: "Rules & Regulations",
+        section_news: "News & Articles",
+        reg_title: "League Registration",
+        reg_closed: "Registration Closed",
+        reg_msg: "Sorry, registration is currently paused or full.",
+        placeholder_name: "Full Name",
+        placeholder_workplace: "Workplace / Department",
+        placeholder_phone: "Mobile Number",
+        placeholder_team: "Team Name",
+        lbl_players: "Team Members List:",
+        btn_confirm_reg: "Confirm Registration",
+        footer_rights: "Developed by Yousef Ben Halim",
+        btn_lang: "عربي"
+    }
+};
+
+// دالة التبديل (تُستدعى عند ضغط الزر)
+window.toggleLanguage = () => {
+    currentLang = currentLang === 'ar' ? 'en' : 'ar';
+    localStorage.setItem('site_lang', currentLang);
+    // عمل تحديث للصفحة ليتم تطبيق اللغة على الداتابيز
+    location.reload(); 
+};
+
+// دالة تطبيق اللغة على العناصر
+const applyLanguage = () => {
+    // 1. تغيير اتجاه الصفحة ولغتها
+    document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = currentLang;
+
+    // 2. ترجمة النصوص العادية (innerText)
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (translations[currentLang][key]) {
+            el.innerText = translations[currentLang][key];
+        }
+    });
+
+    // 3. ترجمة النصوص التوضيحية (Placeholders)
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        if (translations[currentLang][key]) {
+            el.placeholder = translations[currentLang][key];
+        }
+    });
+
+    // 4. تحديث نص زر اللغة نفسه
+    const langBtn = document.getElementById('langBtn');
+    if(langBtn) langBtn.innerText = translations[currentLang].btn_lang;
+
+    // 5. معالجة العنوان الرئيسي (Hero Title) بذكاء
+    // نغيره فقط إذا كان هو النص الافتراضي، أما إذا كتب الأدمن نصاً مخصصاً فلا نلمسه
+    const heroTitle = document.getElementById('heroTitle');
+    if (heroTitle) {
+        const currentText = heroTitle.innerText;
+        const defaultAr = translations['ar'].hero_default;
+        const defaultEn = translations['en'].hero_default;
+        
+        // إذا كان النص الحالي هو الافتراضي (سواء عربي أو إنجليزي)، قم بالترجمة
+        if (currentText === defaultAr || currentText === defaultEn) {
+            heroTitle.innerText = translations[currentLang].hero_default;
+        }
+    }
+};
+
+// تشغيل اللغة فور فتح الموقع
+applyLanguage();
 
 initAuthAndApp();
