@@ -1,0 +1,194 @@
+/* style.css */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap');
+
+:root {
+    --primary: #1e3a8a;
+    --accent: #facc15;
+}
+
+body {
+    font-family: 'Cairo', sans-serif;
+    background-color: #f3f4f6;
+    direction: rtl;
+    transition: direction 0.3s ease;
+}
+
+.logo-container {
+    width: 85px;
+    height: 85px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid #1e3a8a;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.hero-gradient {
+    background: linear-gradient(to bottom, rgba(15, 23, 42, 0.7) 0%, rgba(15, 23, 42, 0.3) 50%, rgba(15, 23, 42, 0.8) 100%);
+}
+
+.formatted-text {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    line-height: 1.6;
+}
+
+.admin-only {
+    display: none !important;
+}
+
+body.is-admin .admin-only {
+    display: block !important;
+}
+
+.modal {
+    background: rgba(0, 0, 0, 0.85);
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(8px);
+    padding: 20px;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.marquee-container {
+    width: 100%;
+    overflow: hidden;
+    background: #facc15;
+    position: relative;
+    padding: 12px 0;
+    display: flex;
+    white-space: nowrap;
+}
+
+.animate-marquee {
+    display: inline-block;
+    padding-right: 100%;
+    animation: marquee-movement 25s linear infinite;
+}
+
+@keyframes marquee-movement {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(100%); }
+}
+
+.heartbeat-text {
+    animation: heartbeat 2.5s ease-in-out infinite;
+    display: inline-block;
+    font-weight: 900;
+}
+
+@keyframes heartbeat {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); color: #facc15; }
+}
+
+.hero-nav-btn {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-weight: 700;
+    color: white;
+    transition: 0.3s;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.hero-nav-btn:hover {
+    background: #facc15;
+    color: #1e3a8a;
+}
+
+.status-msg {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 24px;
+    border-radius: 12px;
+    color: white;
+    font-weight: bold;
+    z-index: 3000;
+    display: none;
+}
+
+.admin-dashboard {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #ffffff !important;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    border: 2px solid #1e3a8a;
+    z-index: 999;
+    width: 190px;
+    overflow: hidden;
+}
+
+.admin-drag-handle {
+    background: #1e3a8a;
+    color: white;
+    padding: 8px;
+    cursor: move;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.team-fields {
+    display: none;
+    border-top: 1px dashed #ddd;
+    padding-top: 10px;
+    margin-top: 10px;
+}
+
+.team-fields.active {
+    display: block;
+}
+
+.player-input {
+    font-size: 11px;
+    padding: 6px;
+    margin-bottom: 2px;
+    border-radius: 8px;
+    width: 100%;
+    border: 1px solid #ddd;
+}
+
+.disclaimer-box {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 20px;
+    padding-top: 20px;
+}
+
+.contact-pill {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 6px 14px;
+    border-radius: 99px;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: 0.3s;
+    text-decoration: none;
+    color: white;
+}
+
+.contact-pill:hover {
+    background: #facc15;
+    color: #1e3a8a;
+}

@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اللجنة الرياضية لحقل الوفاء - Al-Wafa Sports Committee</title>
+    
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://unpkg.com/docx@7.1.0/build/index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body class="text-gray-900 flex flex-col min-h-screen">
+    <div id="statusMsg" class="status-msg"></div>
+
+    <div id="adminPanel" class="admin-dashboard admin-only flex flex-col">
+        <div class="admin-drag-handle">الإدارة - تحكم مباشر</div>
+        <div class="p-3 flex flex-col gap-2">
+            <div class="bg-blue-50 border border-blue-100 p-2 rounded-lg text-center mb-1">
+                <div class="text-[9px] font-bold text-blue-800">إجمالي الزيارات</div>
+                <div id="visitorCount" class="text-lg font-black text-blue-900 leading-none">0</div>
+            </div>
+            <button type="button" onclick="document.body.classList.remove('is-admin')" class="text-[10px] bg-gray-600 text-white px-2 py-2 rounded-lg font-black mb-1">إخفاء اللوحة</button>
+            <button type="button" id="toggleRegBtn" class="bg-green-600 text-white p-2 rounded-lg text-[10px] font-bold">🟢 التسجيل: مفتوح</button>
+            <button type="button" onclick="openModal('newsAdminModal')" class="bg-blue-900 text-white p-2 rounded-lg text-[10px] font-bold">➕ إضافة خبر</button>
+            <button type="button" onclick="openModal('regsModal')" class="bg-gray-800 text-white p-2 rounded-lg text-[10px] font-bold">📝 كشف المسجلين</button>
+            <button type="button" onclick="openModal('marqueeAdminModal')" class="bg-yellow-500 text-blue-900 p-2 rounded-lg text-[10px] font-bold">📢 الشريط</button>
+            <button type="button" onclick="openModal('streamAdminModal')" class="bg-red-600 text-white p-2 rounded-lg text-[10px] font-bold">📺 البث</button>
+            <button type="button" onclick="openModal('adsAdminModal')" class="bg-purple-600 text-white p-2 rounded-lg text-[10px] font-bold">📢 الإعلانات</button>
+            <button type="button" onclick="openModal('rulesAdminModal')" class="bg-indigo-600 text-white p-2 rounded-lg text-[10px] font-bold">📜 اللوائح</button>
+            <button type="button" onclick="openModal('heroAdminModal')" class="bg-orange-500 text-white p-2 rounded-lg text-[10px] font-bold">✏️ عنوان الصفحة</button>
+            <button type="button" onclick="openModal('contactsAdminModal')" class="bg-teal-600 text-white p-2 rounded-lg text-[10px] font-bold">📞 أرقام التواصل</button>
+            <button type="button" onclick="openModal('changePassModal')" class="bg-slate-700 text-white p-2 rounded-lg text-[10px] font-bold mt-2 border-t border-slate-600">🔐 تغيير كلمة المرور</button>
+        </div>
+    </div>
+
+    <nav class="bg-white shadow-md sticky top-0 z-50 h-24 border-b border-blue-900/10">
+        <div class="container mx-auto px-4 h-full flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="logo-container">
+                    <img id="mainLogoImg" src="https://drive.google.com/thumbnail?id=10PW4OGHkem40cJTsaPB0rk786mvDPDg4&sz=w500" alt="Logo">
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-black text-blue-900 leading-none">اللجنة الرياضية لحقل الوفاء</h1>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase mt-1 tracking-wider">Al-Wafa Field Sports Committee</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="openModal('loginModal')" class="text-[9px] border border-gray-200 px-2 py-1 rounded text-gray-400 hover:bg-gray-100 hover:text-blue-900 transition">ADMIN</button>
+                <button id="langBtn" onclick="toggleLanguage()" class="text-[10px] border border-blue-900 bg-blue-50 text-blue-900 px-2 py-1 rounded font-bold hover:bg-blue-900 hover:text-white transition">English</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="marquee-container shadow-inner">
+        <div class="animate-marquee">
+            <span class="font-bold text-blue-900 text-lg" id="marqueeText">... جاري تحميل الأخبار ...</span>
+        </div>
+    </div>
+
+    <section class="relative h-[400px] flex items-center justify-center text-white overflow-hidden">
+        <div class="absolute inset-0 z-0">
+            <img src="https://drive.google.com/thumbnail?id=12_e3EC9QX9YFPc7eXcVF_fsco7qhmRv-&sz=w1200" class="w-full h-full object-cover">
+            <div class="absolute inset-0 hero-gradient"></div>
+        </div>
+        <div class="relative z-20 text-center px-6">
+            <div class="flex flex-wrap justify-center gap-3 mb-8">
+                <a href="#" class="hero-nav-btn">الرئيسية</a>
+                <a href="#news" class="hero-nav-btn">الأخبار</a>
+                <a href="#stream" class="hero-nav-btn">البث</a>
+                <a href="#register" class="hero-nav-btn bg-yellow-400 text-blue-900 !border-none">سجل الآن</a>
+            </div>
+            <h2 id="heroTitle" class="text-4xl md:text-6xl font-black mb-6 heartbeat-text">ملاعب الوفاء تناديكم</h2>
+        </div>
+    </section>
+
+    <main class="container mx-auto px-4 py-12 grid grid-cols-1 lg:grid-cols-12 gap-10 flex-grow text-right">
+        <div class="lg:col-span-8 space-y-12">
+            <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-4">
+                    <h3 class="text-lg font-black text-purple-900 mb-2 border-r-4 border-purple-600 pr-3">الإعلانات والتعميمات</h3>
+                    <div id="adsContainer" class="space-y-3"></div>
+                </div>
+                <div class="space-y-4">
+                    <h3 class="text-lg font-black text-indigo-900 mb-2 border-r-4 border-indigo-600 pr-3">القوانين واللوائح</h3>
+                    <div id="rulesContainer" class="space-y-3"></div>
+                </div>
+            </section>
+            <section id="news">
+                <h3 class="text-3xl font-black text-blue-900 mb-8 border-b-4 border-blue-900 pb-2">الأخبار والمقالات</h3>
+                <div id="newsContainer" class="grid grid-cols-1 gap-6"></div>
+            </section>
+        </div>
+
+        <div class="lg:col-span-4 space-y-10">
+            <section id="register" class="bg-white p-8 rounded-3xl shadow-xl border-t-8 border-blue-900">
+                <h3 class="text-2xl font-black text-blue-900 mb-6 text-right">التسجيل في الدوري</h3>
+                <div id="registrationClosedMsg" class="hidden text-center p-6 bg-red-50 rounded-2xl border border-red-200">
+                    <h4 class="text-xl font-black text-red-600">التسجيل مغلق حالياً</h4>
+                    <p class="text-xs text-red-400 mt-2">نأسف، تم اكتمال العدد أو إيقاف التسجيل مؤقتاً.</p>
+                </div>
+                <form id="registrationForm" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="text" id="regName" placeholder="الاسم" required class="w-full bg-gray-50 border-2 p-3 rounded-xl outline-none focus:border-blue-900 transition text-right">
+                        <select id="regGame" class="w-full bg-gray-50 border-2 p-3 rounded-xl outline-none font-bold focus:border-blue-900 transition text-right">
+                            <option value="بلياردو">بلياردو (فردي)</option>
+                            <option value="تنس طاولة">تنس طاولة (فردي)</option>
+                            <option value="شطرنج">شطرنج (فردي)</option>
+                            <option value="كرة القدم">كرة القدم (فريق)</option>
+                            <option value="الجطوني">الجطوني (فريق)</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="text" id="regWorkplace" placeholder="مكان العمل" required class="w-full bg-gray-50 border-2 p-3 rounded-xl outline-none focus:border-blue-900 transition text-right">
+                        <input type="tel" id="regPhone" placeholder="رقم الموبايل 09xxxxxxx" required class="w-full bg-gray-50 border-2 p-3 rounded-xl outline-none focus:border-blue-900 transition text-right">
+                    </div>
+
+                    <div id="teamNameWrapper" class="hidden">
+                        <input type="text" id="teamName" placeholder="اسم الفريق" class="w-full bg-blue-50 border-2 border-blue-200 p-3 rounded-xl outline-none font-bold text-right">
+                    </div>
+
+                    <div id="teamPlayersContainer" class="team-fields">
+                        <p class="text-[11px] font-bold text-blue-900 mb-2">قائمة أعضاء الفريق:</p>
+                        <div id="playerInputs" class="grid grid-cols-2 gap-x-2 gap-y-1"></div>
+                    </div>
+
+                    <button type="submit" id="submitRegBtn" class="w-full bg-blue-900 text-white py-4 rounded-xl font-black text-lg hover:bg-blue-800 transition shadow-lg">تأكيد التسجيل</button>
+                </form>
+            </section>
+
+            <section id="stream" class="bg-gray-900 rounded-3xl overflow-hidden shadow-2xl border-4 border-gray-800">
+                <div class="p-3 bg-red-600 text-white font-bold flex items-center justify-between text-xs">
+                    <div class="flex items-center">
+                        <span id="liveIndicator" class="hidden w-2 h-2 bg-white rounded-full animate-ping ml-2"></span>
+                        <span>بث مباشر</span>
+                    </div>
+                </div>
+                <div id="streamDisplay" class="aspect-video bg-black flex items-center justify-center text-white/40 text-sm">
+                    لا يوجد بث مباشر حالياً
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="bg-blue-950 text-white py-12 px-6 border-t-4 border-yellow-400 mt-auto">
+        <div class="container mx-auto max-w-4xl text-center">
+            <p class="text-yellow-400 font-black text-sm mb-4">اللجنة الرياضية لحقل الوفاء</p>
+            <div class="flex flex-wrap justify-center gap-4 mb-8">
+                <a id="contactLink1" href="#" class="contact-pill"><span class="text-yellow-400">📞</span> للتواصل والاستفسار: ...</a>
+                <a id="contactLink2" href="#" class="contact-pill"><span class="text-yellow-400">📞</span> للتواصل والاستفسار: ...</a>
+            </div>
+            <div class="disclaimer-box">
+                <p class="text-[11px] leading-relaxed text-blue-100/70 max-w-2xl mx-auto font-medium">
+                    إخلاء مسؤولية: هذه المنصة مبادرة تطوعية لتنظيم النشاط الرياضي للحقل الوفاء ، ولا تمثل أي جهة رسمية. والغاية منها تسهيل عملية المشاركة والتسجيل في الانشطة الرياضية بين الموظفين .
+                </p>
+                <div class="mt-4 flex flex-col items-center gap-1">
+                    <p class="text-[10px] text-blue-300 font-bold opacity-60">Developed by <span class="text-white">Yousef Ben Halim</span></p>
+                    <p class="text-[9px] text-blue-300 font-bold opacity-40">&copy; 2026 Al-Wafa Sports Committee</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <div id="regsModal" class="modal">
+        <div class="bg-white p-6 rounded-3xl w-full max-w-4xl max-h-[85vh] overflow-y-auto">
+            <div class="flex flex-col gap-4 mb-6">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-black text-2xl text-blue-900">كشف المسجلين</h3>
+                    <button id="exportWordBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-md">📄 طباعة المحدد</button>
+                </div>
+                
+                <div class="bg-gray-50 p-3 rounded-xl border border-gray-200">
+                    <p class="text-[10px] font-bold text-gray-500 mb-2">اختر الرياضات التي تريد طباعتها:</p>
+                    <div id="exportFilters" class="flex flex-wrap gap-3">
+                        </div>
+                </div>
+            </div>
+            <div class="overflow-x-auto border rounded-2xl">
+                <table class="w-full text-sm text-right">
+                    <thead class="bg-blue-900 text-white font-bold">
+                        <tr>
+                            <th class="p-3">ت</th>
+                            <th class="p-3">الاسم / الفريق</th>
+                            <th class="p-3 text-center">اللعبة</th>
+                            <th class="p-3 text-center">رقم الهاتف</th>
+                            <th class="admin-only p-3 text-center">الإدارة</th>
+                        </tr>
+                    </thead>
+                    <tbody id="regsTableBody" class="divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+            <div class="mt-4 flex justify-end">
+                <button class="bg-gray-100 text-gray-500 py-2 px-8 rounded-xl font-bold" onclick="closeModal('regsModal')">إغلاق</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="newsAdminModal" class="modal">
+        <div class="bg-white p-8 rounded-3xl w-full max-w-md">
+            <h3 class="font-black text-2xl text-blue-900 mb-6">إضافة خبر جديد</h3>
+            <form id="newsAdminForm" class="space-y-4">
+                <input type="text" id="newsTitle" placeholder="عنوان الخبر" required class="w-full border-2 p-3 rounded-xl text-right">
+                <textarea id="newsContent" placeholder="تفاصيل الخبر..." required class="w-full border-2 p-3 rounded-xl text-right h-32"></textarea>
+                <button type="submit" class="w-full bg-blue-900 text-white py-3 rounded-xl font-bold">نشر الخبر</button>
+            </form>
+            <button class="mt-4 text-gray-400 w-full" onclick="closeModal('newsAdminModal')">إغلاق</button>
+        </div>
+    </div>
+
+    <div id="marqueeAdminModal" class="modal">
+        <div class="bg-white p-8 rounded-3xl w-full max-w-md">
+            <h3 class="font-black text-2xl text-blue-900 mb-6">تعديل شريط الأخبار</h3>
+            <input type="text" id="marqueeInput" placeholder="اكتب النص هنا..." class="w-full border-2 p-3 rounded-xl text-right mb-4">
+            <button id="saveMarqueeBtn" class="w-full bg-yellow-500 text-blue-900 py-3 rounded-xl font-bold">تحديث الشريط</button>
+            <button class="mt-4 text-gray-400 w-full" onclick="closeModal('marqueeAdminModal')">إغلاق</button>
+        </div>
+    </div>
+
+    <div id="loginModal" class="modal">
+        <div class="bg-white p-8 rounded-3xl w-full max-w-sm text-center">
+            <h3 class="font-black text-2xl text-blue-900 mb-2">تسجيل دخول المشرف</h3>
+            <p class="text-xs text-gray-400 mb-6">أدخل كلمة المرور للوصول للوحة التحكم</p>
+            <form id="loginForm" class="space-y-4">
+                <input type="password" id="loginPassInput" placeholder="******" class="w-full border-2 p-3 rounded-xl text-center font-mono text-lg tracking-widest" required>
+                <button type="submit" class="w-full bg-blue-900 text-white py-3 rounded-xl font-bold">دخول</button>
+            </form>
+            <button class="mt-4 text-gray-400 text-xs font-bold" onclick="closeModal('loginModal')">إلغاء</button>
+        </div>
+    </div>
+
+    <div id="changePassModal" class="modal">
+        <div class="bg-white p-8 rounded-3xl w-full max-w-sm">
+            <h3 class="font-black text-2xl text-blue-900 mb-6">تغيير كلمة المرور</h3>
+            <form id="changePassForm" class="space-y-4">
+                <div>
+                    <label class="text-xs font-bold text-gray-500">كلمة المرور الجديدة:</label>
+                    <input type="password" id="newPassInput" required class="w-full border-2 p-3 rounded-xl text-center font-mono text-lg">
+                </div>
+                <button type="submit" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">حفظ التغيير</button>
+            </form>
+            <button class="mt-4 text-gray-400 w-full" onclick="closeModal('changePassModal')">إغلاق</button>
+        </div>
+    </div>
+
+    <div id="contactsAdminModal" class="modal">
+        <div class="bg-white p-8 rounded-3xl w-full max-w-md">
+            <h3 class="font-black text-2xl text-blue-900 mb-6">تعديل أرقام التواصل</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs font-bold text-gray-500">الرقم الأول:</label>
+                    <input type="text" id="contactInput1" placeholder="مثلاً 0911592379" class="w-full border-2 p-3 rounded-xl text-left font-mono" dir="ltr">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-500">الرقم الثاني:</label>
+                    <input type="text" id="contactInput2" placeholder="مثلاً 0912500363" class="w-full border-2 p-3 rounded-xl text-left font-mono" dir="ltr">
+                </div>
+            </div>
+            <button id="saveContactsBtn" class="w-full bg-teal-600 text-white py-3 rounded-xl font-bold mt-6">حفظ الأرقام</button>
+            <button class="mt-4 text-gray-400 w-full" onclick="closeModal('contactsAdminModal')">إغلاق</button>
+        </div>
+    </div>
+
+    <div id="heroAdminModal" class="modal">
+        <div class="bg-white p-8 rounded-3xl w-full max-w-md">
+            <h3 class="font-black text-2xl text-blue-900 mb-6">تعديل العنوان الرئيسي</h3>
+            <input type="text" id="heroInput" placeholder="اكتب العنوان الجديد..." class="w-full border-2 p-3 rounded-xl text-right mb-4">
+            <button id="saveHeroBtn" class="w-full bg-orange-500 text-white py-3 rounded-xl font-bold">حفظ العنوان</button>
+            <button class="mt-4 text-gray-400 w-full" onclick="closeModal('heroAdminModal')">إغلاق</button>
+        </div>
+    </div>
+
+    <div id="streamAdminModal" class="modal">
+        <div class="bg-white p-8 rounded-3xl w-full max-w-md">
+            <h3 class="font-black text-2xl text-blue-900 mb-6">إعدادات البث المباشر</h3>
+            <p class="text-xs text-gray-500 mb-2">ضع رابط يوتيوب أو فيسبوك أو كود Embed</p>
+            <textarea id="streamCodeInput" placeholder="https://youtube.com/watch?v=... أو كود HTML" class="w-full border-2 p-3 rounded-xl mb-4 font-mono text-xs h-24 text-left" dir="ltr"></textarea>
+            <div class="flex gap-2">
+                <button id="startStreamBtn" class="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold">تفعيل البث</button>
+                <button id="stopStreamBtn" class="flex-1 bg-gray-600 text-white py-3 rounded-xl font-bold">إيقاف</button>
+            </div>
+            <button class="mt-4 text-gray-400 w-full" onclick="closeModal('streamAdminModal')">إغلاق</button>
+        </div>
+    </div>
+
+    <div id="adsAdminModal" class="modal">
+        <div class="bg-white p-8 rounded-3xl w-full max-w-md">
+            <h3 class="font-black text-2xl text-blue-900 mb-6">إضافة إعلان / تعميم</h3>
+            <form id="adsAdminForm" class="space-y-4">
+                <input type="text" id="adTitle" placeholder="عنوان الإعلان" required class="w-full border-2 p-3 rounded-xl text-right">
+                <input type="text" id="adLink" placeholder="رابط (اختياري)" class="w-full border-2 p-3 rounded-xl text-left">
+                <button type="submit" class="w-full bg-purple-600 text-white py-3 rounded-xl font-bold">حفظ</button>
+            </form>
+            <button class="mt-4 text-gray-400 w-full" onclick="closeModal('adsAdminModal')">إغلاق</button>
+        </div>
+    </div>
+
+    <div id="rulesAdminModal" class="modal">
+        <div class="bg-white p-8 rounded-3xl w-full max-w-md">
+            <h3 class="font-black text-2xl text-blue-900 mb-6">إضافة لائحة / قانون</h3>
+            <form id="rulesAdminForm" class="space-y-4">
+                <input type="text" id="ruleTitle" placeholder="اسم اللائحة" required class="w-full border-2 p-3 rounded-xl text-right">
+                <input type="text" id="ruleLink" placeholder="رابط الملف" required class="w-full border-2 p-3 rounded-xl text-left">
+                <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">حفظ</button>
+            </form>
+            <button class="mt-4 text-gray-400 w-full" onclick="closeModal('rulesAdminModal')">إغلاق</button>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script type="module" src="script.js"></script>
+</body>
+</html>
