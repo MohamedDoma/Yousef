@@ -193,6 +193,80 @@ body.is-admin .admin-only {
     color: #1e3a8a;
 }
 
+/* تنسيق قص النص الطويل */
+.news-truncated {
+    display: -webkit-box;
+    -webkit-line-clamp: 3; /* يظهر 3 أسطر فقط */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* =========================================
+   تنسيق بطاقات التحميل (الإعلانات واللوائح)
+   ========================================= */
+
+.download-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    border-radius: 16px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    text-decoration: none;
+    position: relative;
+    overflow: hidden;
+}
+
+/* تأثير عند المرور */
+.download-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    border-color: #1e3a8a; /* لون أزرق عند التحويم */
+}
+
+/* شريط جانبي ملون لتمييز النوع */
+.download-card::before {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    border-radius: 0 4px 4px 0;
+}
+
+/* ألوان الأشرطة حسب النوع */
+.card-type-ads::before { background: linear-gradient(to bottom, #9333ea, #7e22ce); } /* بنفسجي للإعلانات */
+.card-type-rules::before { background: linear-gradient(to bottom, #4f46e5, #4338ca); } /* نيلي للوائح */
+
+/* عكس الشريط في الإنجليزية */
+html[dir="ltr"] .download-card::before {
+    right: auto;
+    left: 0;
+    border-radius: 4px 0 0 4px;
+}
+
+/* أيقونة التحميل */
+.dl-icon-wrapper {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.3s;
+}
+
+.download-card:hover .dl-icon-wrapper {
+    background: #1e3a8a;
+    color: white;
+}
+
 /* =========================================
    تعديل اتجاه الشريط الإخباري (إنجليزية) - نهائي ومعدل
    ========================================= */

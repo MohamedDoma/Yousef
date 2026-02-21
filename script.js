@@ -21,6 +21,30 @@ window.closeModal = (id) => {
 };
 
 // ==========================================
+// دوال عرض ملفات PDF (Google Drive Preview)
+// ==========================================
+
+// دالة تحويل رابط درايف إلى رابط معاينة
+window.getDrivePreviewLink = (url) => {
+    if (!url) return "";
+    const idMatch = url.match(/\/d\/(.+?)\//);
+    if (url.includes('drive.google.com') && idMatch && idMatch[1]) {
+        return `https://drive.google.com/file/d/${idMatch[1]}/preview`;
+    }
+    return url; 
+};
+
+// دالة فتح نافذة العرض
+window.viewPdf = (url) => {
+    const previewUrl = getDrivePreviewLink(url);
+    const frame = document.getElementById('pdfFrame');
+    if(frame) {
+        frame.src = previewUrl;
+        openModal('pdfViewerModal');
+    }
+};
+
+// ==========================================
 // 2. الاتصال بـ Firebase
 // ==========================================
 
@@ -55,18 +79,23 @@ const showStatus = (msg, color) => {
     }
 };
 
-// التعامل مع روابط البث
-const processStreamInput = (input) => {
-    if (!input) return "";
-    if (input.includes('<iframe')) return input;
-    let videoId = "";
+// دالة معالجة الرابط وتحويله إلى كود تضمين (Embed)
+const processStreamInput = (url) => {
+    if (!url) return "";
+    
+    // إذا كان المدخل كود iframe جاهز، استخدمه كما هو
+    if (url.includes('<iframe')) return url;
+    
+    // فحص روابط يوتيوب واستخراج معرف الفيديو
     const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-    const match = input.match(ytRegex);
+    const match = url.match(ytRegex);
+    
     if (match && match[1]) {
-        videoId = match[1];
-        return `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+        return `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${match[1]}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
     }
-    return `<iframe width="100%" height="100%" src="${input}" frameborder="0" allowfullscreen></iframe>`;
+    
+    // إذا كان رابطاً عادياً (مثل فيسبوك أو غيره)، ضعه داخل iframe
+    return `<iframe width="100%" height="100%" src="${url}" frameborder="0" allowfullscreen></iframe>`;
 };
 
 // مستمعات واجهة المستخدم (UI Listeners)
@@ -121,11 +150,21 @@ const handleFirestoreError = (err) => {
         const heroTitleEl = document.getElementById('heroTitle');
         if(heroTitleEl) heroTitleEl.innerText = textToShow;
 
-        // 2. تحديث الصورة (الجديد)
+        // 2. تحديث الصورة (مع معالجة روابط جوجل درايف لتظهر مباشرة)
         const defaultImg = "https://drive.google.com/thumbnail?id=12_e3EC9QX9YFPc7eXcVF_fsco7qhmRv-&sz=w1200";
         const heroImgEl = document.getElementById('heroBgImg');
+        
         if(heroImgEl) {
-            heroImgEl.src = data?.image || defaultImg;
+            let finalImgUrl = data?.image || defaultImg;
+            
+            // تحويل رابط Google Drive العادي إلى رابط صورة مباشر (Direct Thumbnail)
+            const idMatch = finalImgUrl.match(/\/d\/(.+?)\//) || finalImgUrl.match(/id=(.+?)(&|$)/);
+            if (finalImgUrl.includes('drive.google.com') && idMatch) {
+                const fileId = idMatch[1];
+                finalImgUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1200`;
+            }
+            
+            heroImgEl.src = finalImgUrl;
         }
 
     }, handleFirestoreError);
@@ -148,39 +187,80 @@ const handleFirestoreError = (err) => {
         }
     };
 
-    // 3.6. أرقام التواصل (Contacts)
+// 3.6. أرقام التواصل (نظام القائمة الديناميكية)
     const contactsRef = doc(db, 'artifacts', appId, 'public', 'data', 'config', 'contacts');
-    
+    window.currentContacts = []; // مخزن للأرقام الحالية
+
+    // أ) الاستماع للتحديثات وعرض الأرقام في الفوتر
     onSnapshot(contactsRef, (snap) => {
         const data = snap.data();
-        const p1 = data?.phone1 || "0911592379"; // الرقم الافتراضي الأول
-        const p2 = data?.phone2 || "0912500363"; // الرقم الافتراضي الثاني
+        // استخدام قائمة موجودة أو وضع القائمة الافتراضية
+        const list = data?.list || ["0911592379", "0912500363"];
+        window.currentContacts = list; // تحديث المتغير العام
 
-        // تحديث الرقم الأول
-        const link1 = document.getElementById('contactLink1');
-        if(link1) {
-            link1.href = `tel:${p1}`;
-            link1.innerHTML = `<span class="text-yellow-400">📞</span> للتواصل والاستفسار: ${p1}`;
-        }
-
-        // تحديث الرقم الثاني
-        const link2 = document.getElementById('contactLink2');
-        if(link2) {
-            link2.href = `tel:${p2}`;
-            link2.innerHTML = `<span class="text-yellow-400">📞</span> للتواصل والاستفسار: ${p2}`;
+        const container = document.getElementById('contactsContainer');
+        if(container) {
+            container.innerHTML = ''; // مسح القديم
+            list.forEach(num => {
+                const a = document.createElement('a');
+                a.href = `tel:${num}`;
+                a.className = 'contact-pill'; // نفس تنسيق CSS القديم
+                a.innerHTML = `<span class="text-yellow-400">📞</span> للتواصل والاستفسار: ${num}`;
+                container.appendChild(a);
+            });
         }
     }, handleFirestoreError);
 
+    // ب) دوال إدارة النافذة (إضافة وحذف مؤقت قبل الحفظ)
+    window.tempContacts = [];
+
+    // دالة لفتح النافذة وتجهيز القائمة
+    window.openContactsEditor = () => {
+        window.tempContacts = [...window.currentContacts]; // نأخذ نسخة من الأرقام الحالية
+        window.renderAdminContacts();
+        openModal('contactsAdminModal');
+    };
+
+    // دالة رسم القائمة داخل نافذة الأدمن
+    window.renderAdminContacts = () => {
+        const listDiv = document.getElementById('adminContactsList');
+        listDiv.innerHTML = '';
+        window.tempContacts.forEach((num, index) => {
+            const div = document.createElement('div');
+            div.className = 'flex justify-between items-center bg-white p-2 rounded border border-gray-200';
+            div.innerHTML = `
+                <span class="font-mono font-bold text-blue-900">${num}</span>
+                <button onclick="removeContactFromList(${index})" class="text-red-500 font-bold text-xs bg-red-50 px-2 py-1 rounded hover:bg-red-100">حذف ❌</button>
+            `;
+            listDiv.appendChild(div);
+        });
+    };
+
+    // دالة إضافة رقم للقائمة المؤقتة
+    window.addContactToTempList = () => {
+        const input = document.getElementById('newContactInput');
+        const val = input.value.trim();
+        if(val) {
+            window.tempContacts.push(val); // إضافة للقائمة
+            input.value = '';
+            window.renderAdminContacts(); // إعادة رسم القائمة
+        }
+    };
+
+    // دالة حذف رقم من القائمة المؤقتة
+    window.removeContactFromList = (index) => {
+        window.tempContacts.splice(index, 1); // حذف العنصر
+        window.renderAdminContacts(); // إعادة رسم القائمة
+    };
+
+    // ج) زر الحفظ النهائي (إرسال للقاعدة)
     document.getElementById('saveContactsBtn').onclick = () => {
-        const p1 = document.getElementById('contactInput1').value;
-        const p2 = document.getElementById('contactInput2').value;
-        
-        if(p1 && p2) {
-            setDoc(contactsRef, { phone1: p1, phone2: p2 }, { merge: true });
+        if(window.tempContacts.length > 0) {
+            setDoc(contactsRef, { list: window.tempContacts }, { merge: true });
             closeModal('contactsAdminModal');
-            showStatus("تم تحديث الأرقام", "#10b981");
+            showStatus("تم تحديث قائمة الأرقام", "#10b981");
         } else {
-            alert("يرجى إدخال الرقمين");
+            alert("يجب أن تبقي رقماً واحداً على الأقل!");
         }
     };
 
@@ -299,29 +379,161 @@ const setupApp = (user) => {
     };
 
     // 4. البث المباشر
+    // 4. البث المباشر (Multi-Stream)
+    // 4. البث المباشر (نظام النوافذ المنفصلة تحت بعض)
     const streamRef = doc(db, 'artifacts', appId, 'public', 'data', 'config', 'stream');
+    
     onSnapshot(streamRef, (snap) => {
         const d = snap.data();
-        const display = document.getElementById('streamDisplay');
-        const indicator = document.getElementById('liveIndicator');
-        if(d?.active && d.code) {
-            display.innerHTML = d.code;
-            display.classList.remove('bg-black');
-            indicator.classList.remove('hidden');
+        const container = document.getElementById('multiStreamContainer');
+        const liveIndicator = document.getElementById('liveIndicator'); // تأكد من وجوده في مكان آخر أو احذفه
+        
+        // مسح الحاوية تماماً قبل إعادة البناء
+        container.innerHTML = "";
+
+        if(d?.active && d.streams && d.streams.length > 0) {
+            window.tempStreams = d.streams; // تحديث القائمة للأدمن
+
+            d.streams.forEach((s, index) => {
+                const title = (currentLang === 'en' && s.title_en) ? s.title_en : s.title;
+                
+                // بناء Section كامل لكل فيديو
+                const section = document.createElement('section');
+                section.className = "bg-gray-900 rounded-3xl overflow-hidden shadow-2xl border-4 border-gray-800 mb-8";
+                section.innerHTML = `
+                    <div class="p-3 bg-red-600 text-white font-bold flex items-center justify-between text-xs">
+                        <div class="flex items-center">
+                            <span class="w-2 h-2 bg-white rounded-full animate-ping ml-2"></span>
+                            <span>${title || (currentLang === 'en' ? 'Live Stream' : 'بث مباشر')}</span>
+                        </div>
+                        <button onclick="toggleStreamFullScreenById('stream-frame-${index}')" class="hover:bg-red-700 p-1 rounded transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="stream-frame-${index}" class="aspect-video bg-black w-full">
+                        ${s.embedCode}
+                    </div>
+                `;
+                container.appendChild(section);
+            });
         } else {
-            display.innerHTML = "لا يوجد بث مباشر حالياً";
-            display.classList.add('bg-black');
-            indicator.classList.add('hidden');
+            // حالة عدم وجود بث
+            container.innerHTML = `
+                <section class="bg-gray-900 rounded-3xl overflow-hidden shadow-2xl border-4 border-gray-800">
+                    <div class="p-3 bg-gray-700 text-white font-bold text-xs text-center">لا يوجد بث مباشر حالياً</div>
+                    <div class="aspect-video bg-black flex items-center justify-center text-white/40 text-sm">Offline</div>
+                </section>
+            `;
+            window.tempStreams = [];
         }
     }, handleFirestoreError);
 
-    document.getElementById('startStreamBtn').onclick = () => {
-        const rawInput = document.getElementById('streamCodeInput').value;
-        setDoc(streamRef, { active: true, code: processStreamInput(rawInput) }, { merge: true });
-        closeModal('streamAdminModal');
+    // ب) وظائف إدارة الشاشات في لوحة التحكم
+    // مغيرات الحالة لنظام البث
+window.tempStreams = []; 
+window.editStreamIndex = -1; // -1 تعني وضع "إضافة" جديد
+
+// دالة لفتح نافذة البث وتحديث القائمة فوراً
+window.openStreamEditor = () => {
+    window.editStreamIndex = -1; // العودة لوضع الإضافة الافتراضي
+    // تصفير الخانات عند الفتح
+    document.getElementById('newStreamUrl').value = '';
+    document.getElementById('newStreamTitleAr').value = '';
+    document.getElementById('newStreamTitleEn').value = '';
+    window.renderAdminStreams(); // تحديث القائمة لتظهر الشاشات فوراً
+    openModal('streamAdminModal');
+};
+
+// دالة رسم القائمة في لوحة التحكم مع زر التعديل
+window.renderAdminStreams = () => {
+    const listDiv = document.getElementById('adminStreamsList');
+    if(!listDiv) return;
+    listDiv.innerHTML = '';
+    
+    window.tempStreams.forEach((s, index) => {
+        const div = document.createElement('div');
+        div.className = 'flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-200 mb-2 transition hover:border-red-300';
+        div.innerHTML = `
+            <div class="flex flex-col flex-1 overflow-hidden ml-2 text-right">
+                <span class="font-bold text-blue-900 text-[11px] truncate">${s.title || 'بدون عنوان'}</span>
+                <span class="text-gray-400 text-[9px] font-mono truncate text-left" dir="ltr">${s.url}</span>
+            </div>
+            <div class="flex gap-1">
+                <button onclick="editStreamFromList(${index})" class="text-blue-600 bg-blue-50 px-2 py-1 rounded text-[10px] font-bold">تعديل</button>
+                <button onclick="removeStreamFromList(${index})" class="text-red-500 bg-red-50 px-2 py-1 rounded text-[10px] font-bold">حذف</button>
+            </div>
+        `;
+        listDiv.appendChild(div);
+    });
+};
+
+// دالة الإضافة أو تحديث العنصر المختار
+window.addStreamToTempList = () => {
+    const urlInput = document.getElementById('newStreamUrl');
+    const titleAr = document.getElementById('newStreamTitleAr');
+    const titleEn = document.getElementById('newStreamTitleEn');
+    
+    if(!urlInput.value.trim()) return alert("يرجى وضع الرابط أولاً");
+
+    const streamData = {
+        url: urlInput.value.trim(),
+        title: titleAr.value.trim(),
+        title_en: titleEn.value.trim(),
+        embedCode: processStreamInput(urlInput.value.trim()) 
     };
+
+    if (window.editStreamIndex === -1) {
+        window.tempStreams.push(streamData); // إضافة فيديو جديد للقائمة
+    } else {
+        window.tempStreams[window.editStreamIndex] = streamData; // تعديل الفيديو الحالي
+        window.editStreamIndex = -1; // تصفير مؤشر التعديل
+    }
+
+    urlInput.value = ''; titleAr.value = ''; titleEn.value = '';
+    window.renderAdminStreams();
+};
+
+// دالة التعديل: تضع بيانات الفيديو المختار في الخانات لتتمكن من تغييرها
+window.editStreamFromList = (index) => {
+    const s = window.tempStreams[index];
+    window.editStreamIndex = index;
+    
+    document.getElementById('newStreamUrl').value = s.url;
+    document.getElementById('newStreamTitleAr').value = s.title;
+    document.getElementById('newStreamTitleEn').value = s.title_en || '';
+    
+    document.getElementById('newStreamTitleAr').focus(); // توجيه المؤشر للعنوان تلقائياً
+};
+
+window.removeStreamFromList = (index) => {
+    window.tempStreams.splice(index, 1);
+    window.renderAdminStreams();
+};
+
+    // ج) الحفظ والإيقاف
+    document.getElementById('saveStreamsBtn').onclick = () => {
+    if(window.tempStreams.length > 0) {
+        // إرسال المصفوفة كاملة لـ Firebase
+        setDoc(streamRef, { 
+            active: true, 
+            streams: window.tempStreams 
+        }, { merge: true });
+        
+        closeModal('streamAdminModal');
+        showStatus("تم تحديث وتفعيل البث", "#10b981");
+    } else {
+        alert("يرجى إضافة شاشة واحدة على الأقل قبل الحفظ");
+    }
+};
+
     document.getElementById('stopStreamBtn').onclick = () => {
-        setDoc(streamRef, { active: false }, { merge: true });
+        if(confirm("هل تريد إيقاف جميع شاشات البث؟")) {
+            setDoc(streamRef, { active: false, streams: [] }, { merge: true });
+            closeModal('streamAdminModal');
+            showStatus("تم إيقاف البث", "#4b5563");
+        }
     };
 
     // 5. جلب البيانات (Listeners)
@@ -358,8 +570,20 @@ const setupApp = (user) => {
         document.getElementById('editNewsId').value = ""; 
         document.getElementById('newsAdminForm').reset();
     };
+// دالة مساعدة لزر اقرأ المزيد
+    window.toggleNewsText = (btn, textId) => {
+        const textEl = document.getElementById(textId);
+        // التبديل بين الحالتين
+        if (textEl.classList.contains('news-truncated')) {
+            textEl.classList.remove('news-truncated'); // إظهار النص كامل
+            btn.innerText = (currentLang === 'en') ? "Read Less" : "عرض أقل";
+        } else {
+            textEl.classList.add('news-truncated'); // قص النص
+            btn.innerText = (currentLang === 'en') ? "Read More" : "اقرأ المزيد";
+        }
+    };
 
-// 3. العرض (مع الصورة في الأسفل)
+    // 3. العرض (مع الصورة + اقرأ المزيد + زر التعديل)
     setupCollectionListener('news', 'newsContainer', (id, n) => {
         window.newsCache[id] = n; 
 
@@ -367,12 +591,25 @@ const setupApp = (user) => {
         const displayContent = (currentLang === 'en' && n.content_en) ? n.content_en : n.content;
         const alignClass = (currentLang === 'en' && n.title_en) ? 'text-left' : 'text-right';
 
-        // تجهيز كود الصورة (إذا وجدت)
+        // تجهيز الصورة
         let imageHTML = '';
         if (n.image && n.image.trim() !== "") {
-            // لاحظ: غيرنا mb-4 إلى mt-4 لعمل مسافة فوق الصورة
             imageHTML = `<img src="${n.image}" class="w-full h-64 object-cover rounded-xl mt-4 border border-gray-100 shadow-sm" alt="News Image">`;
         }
+
+        // --- منطق اقرأ المزيد ---
+        // سنفحص هل النص طويل؟ (أكثر من 200 حرف مثلاً)
+        const isLongText = displayContent.length > 200;
+        const textId = `news-txt-${id}`;
+        
+        // إذا النص طويل نضيف كلاس القص، وإذا قصير لا نضيفه
+        const truncateClass = isLongText ? 'news-truncated' : '';
+        
+        // زر اقرأ المزيد يظهر فقط لو النص طويل
+        const readMoreBtn = isLongText 
+            ? `<button onclick="toggleNewsText(this, '${textId}')" class="text-blue-600 text-xs font-bold mt-2 hover:underline">${currentLang === 'en' ? 'Read More' : 'اقرأ المزيد'}</button>` 
+            : '';
+        // ------------------------
 
         const el = document.createElement('div');
         el.className = `bg-white p-6 rounded-3xl shadow-sm border-r-4 border-blue-900 relative ${alignClass}`;
@@ -383,9 +620,10 @@ const setupApp = (user) => {
             </div>
             
             <h4 class="text-xl font-black text-blue-900 mb-2 mt-4">${displayTitle}</h4>
-            <p class="text-gray-600 text-sm font-bold formatted-text">${displayContent}</p>
             
-            ${imageHTML} `;
+            <p id="${textId}" class="text-gray-600 text-sm font-bold formatted-text ${truncateClass}">${displayContent}</p>
+            ${readMoreBtn} ${imageHTML}
+        `;
         return el;
     });
 
@@ -424,31 +662,59 @@ const setupApp = (user) => {
             }
         };
     }
-
-    // الإعلانات (محدث)
+// الإعلانات (تصميم مودرن + عرض داخل الموقع)
     setupCollectionListener('ads', 'adsContainer', (id, a) => {
         const displayTitle = (currentLang === 'en' && a.title_en) ? a.title_en : a.title;
-        const alignClass = (currentLang === 'en' && a.title_en) ? 'flex-row-reverse' : 'flex-row'; // لعكس الأيقونة
+        const textAlign = (currentLang === 'en') ? 'text-left' : 'text-right';
 
         const el = document.createElement('div');
-        el.className = `bg-purple-50 p-4 rounded-2xl flex justify-between items-center group ${alignClass}`;
+        el.className = "relative group mb-3"; 
+        
         el.innerHTML = `
-            <a href="${a.link || '#'}" target="_blank" class="text-purple-900 font-black text-sm hover:underline">📢 ${displayTitle}</a>
-            <button class="admin-only text-red-400 text-[10px] opacity-0 group-hover:opacity-100 transition font-bold" onclick="deleteDocById('ads', '${id}')">Delete</button>
+            <div onclick="viewPdf('${a.link}')" class="download-card card-type-ads cursor-pointer hover:bg-gray-50">
+                <div class="flex-1 px-3 ${textAlign}">
+                    <h5 class="font-bold text-gray-800 text-sm leading-tight">${displayTitle}</h5>
+                    <p class="text-[10px] text-gray-400 mt-1 font-mono">Click to View / اضغط للعرض</p>
+                </div>
+                
+                <div class="dl-icon-wrapper shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                </div>
+            </div>
+
+            <button class="admin-only absolute -top-2 -left-2 bg-red-500 text-white w-6 h-6 rounded-full shadow-md text-xs font-bold opacity-0 group-hover:opacity-100 transition flex items-center justify-center z-10" 
+            onclick="deleteDocById('ads', '${id}')">X</button>
         `;
         return el;
     });
 
-    // اللوائح (محدث)
+    // اللوائح (تصميم مودرن + عرض داخل الموقع)
     setupCollectionListener('rules', 'rulesContainer', (id, r) => {
         const displayTitle = (currentLang === 'en' && r.title_en) ? r.title_en : r.title;
-        const alignClass = (currentLang === 'en' && r.title_en) ? 'flex-row-reverse' : 'flex-row';
+        const textAlign = (currentLang === 'en') ? 'text-left' : 'text-right';
 
         const el = document.createElement('div');
-        el.className = `bg-indigo-50 p-4 rounded-2xl flex justify-between items-center group ${alignClass}`;
+        el.className = "relative group mb-3";
+        
         el.innerHTML = `
-            <a href="${r.link}" target="_blank" class="text-indigo-900 font-black text-sm hover:underline">📜 ${displayTitle}</a>
-            <button class="admin-only text-red-400 text-[10px] opacity-0 group-hover:opacity-100 transition font-bold" onclick="deleteDocById('rules', '${id}')">Delete</button>
+            <div onclick="viewPdf('${r.link}')" class="download-card card-type-rules cursor-pointer hover:bg-gray-50">
+                <div class="flex-1 px-3 ${textAlign}">
+                    <h5 class="font-bold text-gray-800 text-sm leading-tight">${displayTitle}</h5>
+                    <p class="text-[10px] text-gray-400 mt-1 font-mono">View Rule / عرض اللائحة</p>
+                </div>
+
+                <div class="dl-icon-wrapper shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+            </div>
+
+            <button class="admin-only absolute -top-2 -left-2 bg-red-500 text-white w-6 h-6 rounded-full shadow-md text-xs font-bold opacity-0 group-hover:opacity-100 transition flex items-center justify-center z-10" 
+            onclick="deleteDocById('rules', '${id}')">X</button>
         `;
         return el;
     });
@@ -825,23 +1091,13 @@ const translations = {
 // ==========================================
 // 8. وظيفة الشاشة الكاملة للبث
 // ==========================================
-window.toggleStreamFullScreen = () => {
-    const elem = document.getElementById('streamDisplay');
-    
+window.toggleStreamFullScreenById = (elementId) => {
+    const elem = document.getElementById(elementId);
     if (!document.fullscreenElement) {
-        // الدخول في وضع الشاشة الكاملة
-        if (elem.requestFullscreen) {
-            elem.requestFullscreen();
-        } else if (elem.webkitRequestFullscreen) { /* Safari */
-            elem.webkitRequestFullscreen();
-        } else if (elem.msRequestFullscreen) { /* IE11 */
-            elem.msRequestFullscreen();
-        }
+        if (elem.requestFullscreen) elem.requestFullscreen();
+        else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
     } else {
-        // الخروج من وضع الشاشة الكاملة
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-        }
+        if (document.exitFullscreen) document.exitFullscreen();
     }
 };
 
@@ -892,6 +1148,25 @@ const applyLanguage = () => {
             heroTitle.innerText = translations[currentLang].hero_default;
         }
     }
+};
+
+// ==========================================
+// 9. زر الصعود للأعلى (Scroll to Top)
+// ==========================================
+const scrollBtn = document.getElementById('scrollTopBtn');
+
+// إظهار وإخفاء الزر عند التمرير
+window.onscroll = () => {
+    if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
+        scrollBtn.classList.remove('hidden');
+    } else {
+        scrollBtn.classList.add('hidden');
+    }
+};
+
+// وظيفة الصعود
+window.scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 // تشغيل اللغة فور فتح الموقع
